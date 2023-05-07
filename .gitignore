@@ -3,3 +3,4 @@ db
 dist
 *.md
 .env
+data
