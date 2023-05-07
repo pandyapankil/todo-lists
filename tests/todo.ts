@@ -6,6 +6,8 @@ import { ITodo } from '../models/todo';
 import mongoose from "mongoose";
 import User from '../models/user';
 import Todo from '../models/todo';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -14,29 +16,43 @@ describe('Todo API', () => {
 	let token: string;
 	let user: IUser;
 	let todo: ITodo;
+	let otherUser: IUser;
+	let otherUserToken: string;
 
 	before(async () => {
 		// create a test user and generate token for authentication
-		user = {
+		const salt = await bcrypt.genSalt(10);
+		user = new User({
 			email: 'testuser@example.com',
-			password: 'password',
+			password: await bcrypt.hash('password', salt),
 			firstName: 'Test',
 			lastName: 'User',
-		} as IUser;
-		let res = await chai.request(app)
-			.post('/user')
-			.send(user);
-		user._id = res.body._id;
-		res = await chai.request(app)
-			.post('/login')
-			.send({ email: user.email, password: user.password, });
-		token = res.body.token;
+		});
+		await user.save();
+		token = jwt.sign({
+			id: user._id,
+			email: user.email
+		}, process.env.JWT_SECRET as string);
+
+		// create a second test user and generate token for authentication
+		otherUser = new User({
+			email: 'testuser2@test.com',
+			password: await bcrypt.hash('testpass2', salt),
+			firstName: 'Test',
+			lastName: 'User2',
+		});
+		await otherUser.save();
+		otherUserToken = jwt.sign({
+			id: otherUser._id,
+			email: otherUser.email
+		}, process.env.JWT_SECRET as string);
 	});
 
 	after(async () => {
 		// delete the test user and its associated todos
 		await Todo.deleteMany({ owner: user._id });
 		await User.findByIdAndDelete(user._id);
+		await User.findByIdAndDelete(otherUser._id);
 	});
 
 	describe('POST /todo', () => {
@@ -51,7 +67,7 @@ describe('Todo API', () => {
 			expect(res.body).to.have.property('_id');
 			expect(res.body.title).to.equal(todoData.title);
 			expect(res.body.description).to.equal(todoData.description);
-			expect(res.body.owner).to.equal(user._id);
+			expect(res.body.owner).to.equal(user._id.toString());
 
 			todo = res.body;
 		});
@@ -93,7 +109,7 @@ describe('Todo API', () => {
 			expect(res.body[0]).to.have.property('_id');
 			expect(res.body[0].title).to.equal(todo.title);
 			expect(res.body[0].description).to.equal(todo.description);
-			expect(res.body[0].owner).to.equal(user._id);
+			expect(res.body[0].owner).to.equal(user._id.toString());
 		});
 
 		it('should return error if authentication token is missing', async () => {
@@ -115,7 +131,7 @@ describe('Todo API', () => {
 			expect(res.body).to.have.property('_id');
 			expect(res.body.title).to.equal(todo.title);
 			expect(res.body.description).to.equal(todo.description);
-			expect(res.body.owner).to.equal(user._id);
+			expect(res.body.owner).to.equal(user._id.toString());
 		});
 
 		it('should return 404 if todo does not exist', async () => {
@@ -167,24 +183,9 @@ describe('Todo API', () => {
 		});
 
 		it('should return 401 if the user is not the owner of the todo', async () => {
-			const user2 = {
-				email: 'testuser2@test.com',
-				password: 'testpass2',
-				firstName: 'Test',
-				lastName: 'User2',
-			} as IUser;
-			let resp = await chai.request(app)
-				.post('/user')
-				.send(user2);
-			user._id = resp.body._id;
-			resp = await chai.request(app)
-				.post('/login')
-				.send({ email: user2.email, password: user2.password, });
-			const user2Token = resp.body.token;
-
 			const res = await chai.request(app)
 				.put(`/todo/${todo._id}`)
-				.set('Authorization', `Bearer ${user2Token}`)
+				.set('Authorization', `Bearer ${otherUserToken}`)
 				.send({
 					title: 'Updated Test Todo',
 					description: 'Updated Test Todo Description',
@@ -192,7 +193,6 @@ describe('Todo API', () => {
 				});
 			expect(res.status).to.equal(401);
 			expect(res.body.message).to.equal('Unauthorized');
-			await User.findByIdAndDelete(user2._id);
 		});
 	});
 
@@ -220,13 +220,7 @@ describe('Todo API', () => {
 		});
 
 		it('should return 401 if the user is not the owner of the todo', async () => {
-			// Create another user and todo
-			const otherUser = await User.create({
-				firstName: 'Other',
-				lastName: 'User',
-				email: 'other@example.com',
-				password: 'testpassword'
-			});
+			// Create another todo with otherUser as an owner
 			const otherTodo = await Todo.create({
 				title: 'Other Todo',
 				owner: otherUser._id
@@ -241,7 +235,6 @@ describe('Todo API', () => {
 
 			// Remove the other test data
 			await Todo.findByIdAndDelete(otherTodo._id);
-			await User.findByIdAndDelete(otherUser._id);
 		});
 	});
 

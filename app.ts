@@ -9,11 +9,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 const app = express();
 
-const MONGODB_URI = process.env.MONGODB_URL || 'mongodb://localhost:27017';
+const MONGODB_URI = process.env.MONGODB_URL || process.env.MONGODB_TEST_URL || 'mongodb://localhost:27017';
 mongoose
-	.connect(MONGODB_URI)
+	.connect(MONGODB_URI, { connectTimeoutMS: 30000 })
 	.then(() => console.log("MongoDB connected"))
-	.catch((err) => console.error(err));
+	.catch((err) => {
+		console.error(err);
+		process.exit(1);
+	});
 
 app.use(express.json());
 

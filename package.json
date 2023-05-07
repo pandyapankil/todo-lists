@@ -7,6 +7,7 @@
 		"start": "node dist/app.js",
 		"dev": "nodemon app.ts",
 		"build": "tsc",
+		"grep_test": "ts-mocha tests/* --grep",
 		"test": "ts-mocha tests/*"
 	},
 	"keywords": [],

@@ -1,88 +1,91 @@
-// import chai from 'chai';
-// import chaiHttp from 'chai-http';
-// import User from '../models/user';
-// import server from '../app';
+import chai from 'chai';
+import chaiHttp from 'chai-http';
+import User, { IUser } from '../models/user';
+import server from '../app';
 
-// chai.use(chaiHttp);
-// const expect = chai.expect;
+chai.use(chaiHttp);
+const expect = chai.expect;
 
-// describe('User API', () => {
-// 	before(async () => {
-// 		// Clear the user collection before running the tests
-// 		await User.deleteMany({});
-// 	});
+describe('User API', () => {
+	let user: IUser;
 
-// 	describe('POST /user', () => {
-// 		it('should create a new user', async () => {
-// 			const user = {
-// 				email: 'testuser@example.com',
-// 				password: 'password',
-// 				firstName: 'Test',
-// 				lastName: 'User',
-// 			};
+	after(async () => {
+		// delete test user
+		await User.findByIdAndDelete(user._id);
+	});
 
-// 			const res = await chai.request(server)
-// 				.post('/user')
-// 				.send(user);
+	describe('POST /user', () => {
+		it('should create a new user', async () => {
+			const userData = {
+				email: 'testuser@example.com',
+				password: 'password',
+				firstName: 'Test',
+				lastName: 'User',
+			};
 
-// 			expect(res).to.have.status(201);
-// 			expect(res.body).to.be.an('object');
-// 			expect(res.body.email).to.equal(user.email);
+			const res = await chai.request(server)
+				.post('/user')
+				.send(userData);
+			user = res.body;
 
-// 			// Verify that the user was saved to the database
-// 			const savedUser = await User.findOne({ email: user.email });
-// 			expect(savedUser).to.exist;
-// 			expect(savedUser?.firstName).to.equal(user.firstName);
-// 			expect(savedUser?.lastName).to.equal(user.lastName);
-// 		});
+			expect(res).to.have.status(201);
+			expect(res.body).to.be.an('object');
+			expect(res.body.email).to.equal(user.email);
 
-// 		it('should return an error if the user already exists', async () => {
-// 			const user = {
-// 				email: 'testuser@example.com',
-// 				password: 'password',
-// 				firstName: 'Test',
-// 				lastName: 'User',
-// 			};
+			// Verify that the user was saved to the database
+			const savedUser = await User.findOne({ email: user.email });
+			expect(savedUser).to.exist;
+			expect(savedUser?.firstName).to.equal(user.firstName);
+			expect(savedUser?.lastName).to.equal(user.lastName);
+		});
 
-// 			const res = await chai.request(server)
-// 				.post('/user')
-// 				.send(user);
+		it('should return an error if the user already exists', async () => {
+			const userData = {
+				email: 'testuser@example.com',
+				password: 'password',
+				firstName: 'Test',
+				lastName: 'User',
+			};
 
-// 			expect(res).to.have.status(400);
-// 			expect(res.body).to.be.an('object');
-// 			expect(res.body.message).to.equal('User already exists');
-// 		});
-// 	});
+			const res = await chai.request(server)
+				.post('/user')
+				.send(userData);
 
-// 	describe('POST /login', () => {
-// 		it('should log in a user with valid credentials', async () => {
-// 			const user = {
-// 				email: 'testuser@example.com',
-// 				password: 'password',
-// 			};
+			expect(res).to.have.status(400);
+			expect(res.body).to.be.an('object');
+			expect(res.body.message).to.equal('User already exists');
+		});
+	});
 
-// 			const res = await chai.request(server)
-// 				.post('/login')
-// 				.send(user);
+	describe('POST /login', () => {
+		it('should log in a user with valid credentials', async () => {
+			const userData = {
+				email: 'testuser@example.com',
+				password: 'password',
+			};
 
-// 			expect(res).to.have.status(200);
-// 			expect(res.body).to.be.an('object');
-// 			expect(res.body.token).to.be.a('string');
-// 		});
+			const res = await chai.request(server)
+				.post('/login')
+				.send(userData);
 
-// 		it('should return an error with invalid credentials', async () => {
-// 			const user = {
-// 				email: 'testuser@example.com',
-// 				password: 'wrongpassword',
-// 			};
+			expect(res).to.have.status(200);
+			expect(res.body).to.be.an('object');
+			expect(res.body.token).to.be.a('string');
+		});
 
-// 			const res = await chai.request(server)
-// 				.post('/login')
-// 				.send(user);
+		it('should return an error with invalid credentials', async () => {
+			const userData = {
+				email: 'testuser@example.com',
+				password: 'wrongpassword',
+			};
 
-// 			expect(res).to.have.status(401);
-// 			expect(res.body).to.be.an('object');
-// 			expect(res.body.message).to.equal('Invalid credentials');
-// 		});
-// 	});
-// });
+			const res = await chai.request(server)
+				.post('/login')
+				.send(userData);
+
+			expect(res).to.have.status(401);
+			expect(res.body).to.be.an('object');
+			expect(res.body.message).to.equal('Invalid credentials');
+		});
+	});
+});

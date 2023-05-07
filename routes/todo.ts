@@ -13,7 +13,6 @@ router.post('/todo', authenticateToken, async (req: IAuthRequest, res: Response)
 			return res.status(400).json({ message: error.details[0].message });
 		}
 
-		console.log("value", value)
 		const { title, description, status, owner } = value;
 
 		const todo = new Todo({
